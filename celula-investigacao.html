@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BioDetective: Investigação Celular</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #030a0f;
+    --panel: #040d15;
+    --border: #0a3a52;
+    --accent: #00e5ff;
+    --accent2: #00ff88;
+    --accent3: #ff4d6d;
+    --accent4: #ffd60a;
+    --text: #b0d8e8;
+    --dim: #3a6070;
+    --glow: 0 0 20px rgba(0,229,255,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(0,60,80,0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(0,100,80,0.1) 0%, transparent 40%);
+  }
+
+  /* Scanlines overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 0 30px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 30px;
+  }
+
+  .logo-icon {
+    width: 56px;
+    height: 56px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: var(--glow), inset 0 0 20px rgba(0,229,255,0.1);
+    animation: pulse-ring 3s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: var(--glow), inset 0 0 20px rgba(0,229,255,0.1); }
+    50% { box-shadow: 0 0 40px rgba(0,229,255,0.5), inset 0 0 30px rgba(0,229,255,0.2); }
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(18px, 3vw, 26px);
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .status-bar {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: blink 1.5s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* PHASE INDICATOR */
+  .phase-track {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .phase-item {
+    flex: 1;
+    min-width: 130px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dim);
+    transition: all 0.4s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .phase-item.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,0.05);
+    box-shadow: var(--glow);
+  }
+
+  .phase-item.done {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(0,255,136,0.04);
+  }
+
+  .phase-item::before {
+    content: attr(data-num);
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 900;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.08;
+    color: currentColor;
+  }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 20px;
+    flex: 1;
+  }
+
+  @media (max-width: 720px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* PANELS */
+  .panel {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 6px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* CELL VIEWER */
+  .cell-viewer {
+    width: 100%;
+    aspect-ratio: 1;
+    max-height: 260px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    cursor: crosshair;
+  }
+
+  .cell-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 15px rgba(0,229,255,0.2));
+  }
+
+  .cell-part {
+    cursor: pointer;
+    transition: filter 0.2s, opacity 0.2s;
+  }
+
+  .cell-part:hover { filter: brightness(1.8) drop-shadow(0 0 6px currentColor); }
+  .cell-part.highlight { filter: brightness(2) drop-shadow(0 0 12px var(--accent3)); }
+  .cell-part.dimmed { opacity: 0.3; }
+
+  /* CLUES */
+  .clue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .clue-item {
+    background: rgba(0,229,255,0.04);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent4);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    animation: slide-in 0.4s ease;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .clue-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--accent4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  /* INTERACTION AREA */
+  .interaction-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .case-file {
+    background: rgba(0,229,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+  }
+
+  .case-file h3 {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--accent3);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .case-file p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  /* OPTIONS */
+  .options-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .option-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0,229,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-align: left;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .option-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(0,229,255,0.06));
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .option-btn:hover {
+    border-color: var(--accent);
+    color: #fff;
+    transform: translateX(4px);
+  }
+
+  .option-btn:hover::before { opacity: 1; }
+
+  .option-btn.correct {
+    border-color: var(--accent2);
+    background: rgba(0,255,136,0.08);
+    color: var(--accent2);
+    animation: correct-flash 0.5s ease;
+  }
+
+  .option-btn.wrong {
+    border-color: var(--accent3);
+    background: rgba(255,77,109,0.08);
+    color: var(--accent3);
+    animation: shake 0.4s ease;
+  }
+
+  .option-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
+  @keyframes correct-flash {
+    0% { box-shadow: none; }
+    50% { box-shadow: 0 0 30px rgba(0,255,136,0.5); }
+    100% { box-shadow: none; }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+
+  .opt-key {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--dim);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--dim);
+    transition: all 0.25s;
+  }
+
+  .option-btn:hover .opt-key {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* FEEDBACK */
+  .feedback-box {
+    border-radius: 4px;
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    display: none;
+    animation: slide-in 0.3s ease;
+  }
+
+  .feedback-box.show { display: block; }
+  .feedback-box.success { border: 1px solid var(--accent2); background: rgba(0,255,136,0.05); color: var(--accent2); }
+  .feedback-box.error { border: 1px solid var(--accent3); background: rgba(255,77,109,0.05); color: var(--accent3); }
+
+  /* SCORE */
+  .score-display {
+    display: flex;
+    gap: 16px;
+  }
+
+  .score-box {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .score-num {
+    font-family: 'Orbitron', monospace;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--accent);
+  }
+
+  .score-lbl {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* NAV BTN */
+  .nav-btn {
+    background: linear-gradient(135deg, rgba(0,229,255,0.1), rgba(0,229,255,0.05));
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 12px 24px;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.25s;
+    width: 100%;
+  }
+
+  .nav-btn:hover {
+    background: rgba(0,229,255,0.15);
+    box-shadow: var(--glow);
+    transform: translateY(-2px);
+  }
+
+  /* FINAL SCREEN */
+  #final-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 24px;
+    padding: 40px 20px;
+    min-height: 60vh;
+  }
+
+  #final-screen.show { display: flex; }
+
+  .final-badge {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid var(--accent2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    box-shadow: 0 0 60px rgba(0,255,136,0.4);
+    animation: pulse-ring 2s infinite;
+    background: radial-gradient(circle, rgba(0,255,136,0.1), transparent);
+  }
+
+  .final-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(20px, 4vw, 32px);
+    color: var(--accent2);
+    letter-spacing: 4px;
+  }
+
+  .final-score {
+    font-family: 'Orbitron', monospace;
+    font-size: 64px;
+    font-weight: 900;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .final-summary {
+    max-width: 600px;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text);
+    background: rgba(0,229,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 24px;
+  }
+
+  /* CASE SELECT */
+  #case-select {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    padding: 20px 0;
+  }
+
+  #case-select.hidden { display: none; }
+
+  .intro-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(16px, 3vw, 22px);
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .intro-text {
+    max-width: 600px;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+
+  .cases-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  .case-card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 6px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .case-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+  }
+
+  .case-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: var(--glow);
+  }
+
+  .case-card:hover::before { transform: scaleX(1); }
+
+  .case-num {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .case-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .case-diff {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  .diff-easy { background: rgba(0,255,136,0.15); color: var(--accent2); }
+  .diff-medium { background: rgba(255,214,10,0.15); color: var(--accent4); }
+  .diff-hard { background: rgba(255,77,109,0.15); color: var(--accent3); }
+
+  .progress-bar-wrap {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 8px rgba(0,229,255,0.5);
+  }
+
+  /* SEPARATOR */
+  .sep { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+  /* TERMINAL TEXT EFFECT */
+  .terminal-line {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+
+  .typing::after {
+    content: '█';
+    animation: blink 1s infinite;
+  }
+
+  /* tooltip */
+  [data-tip] {
+    position: relative;
+  }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d2535;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  /* NOTEBOOK */
+  .notebook {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .notebook span { color: var(--accent2); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo-icon">🔬</div>
+    <div>
+      <h1>BioDetective</h1>
+      <div class="subtitle">Sistema de Investigação Celular — v2.4.1</div>
+    </div>
+    <div class="status-bar">
+      <div class="status-indicator"><div class="dot"></div>SISTEMA ATIVO</div>
+      <div id="score-mini" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim)">PONTOS: <span id="pts-display" style="color:var(--accent)">0</span></div>
+    </div>
+  </header>
+
+  <!-- CASE SELECT -->
+  <div id="case-select">
+    <div class="intro-title">Selecionar Caso de Investigação</div>
+    <div class="intro-text">
+      Você é um <strong style="color:var(--accent)">Biomédico Investigador Celular</strong>. Analise as evidências, identifique a estrutura alterada, compreenda o mecanismo comprometido, avalie as consequências e proponha a resolução científica.
+    </div>
+    <div class="cases-grid" id="cases-grid"></div>
+  </div>
+
+  <!-- GAME AREA -->
+  <div id="game-area" style="display:none; flex-direction:column; gap:0;">
+    <!-- Phase track -->
+    <div class="phase-track" id="phase-track">
+      <div class="phase-item" data-num="01">Estrutura Alterada</div>
+      <div class="phase-item" data-num="02">Mecanismo Comprometido</div>
+      <div class="phase-item" data-num="03">Consequências Funcionais</div>
+      <div class="phase-item" data-num="04">Resolução Científica</div>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+    </div>
+
+    <div class="main-grid">
+      <!-- LEFT: Cell viewer + clues -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="panel">
+          <div class="panel-title">Microscópio Eletrônico</div>
+          <div class="cell-viewer">
+            <svg class="cell-svg" viewBox="0 0 220 220" id="cell-svg">
+              <!-- Cell membrane -->
+              <ellipse cx="110" cy="110" rx="100" ry="95" fill="none" stroke="#0a3a52" stroke-width="2"/>
+              <ellipse cx="110" cy="110" rx="100" ry="95" fill="rgba(0,229,255,0.02)"/>
+              <!-- Cytoplasm texture -->
+              <circle cx="60" cy="70" r="3" fill="rgba(0,229,255,0.1)"/>
+              <circle cx="160" cy="150" r="2.5" fill="rgba(0,229,255,0.1)"/>
+              <circle cx="80" cy="160" r="2" fill="rgba(0,229,255,0.08)"/>
+
+              <!-- Nucleus -->
+              <ellipse id="part-nucleus" class="cell-part" cx="110" cy="100" rx="36" ry="32"
+                fill="rgba(0,100,200,0.15)" stroke="#1a5080" stroke-width="1.5"
+                data-tip="Núcleo"/>
+              <ellipse cx="110" cy="100" rx="24" ry="20" fill="rgba(0,80,160,0.12)" stroke="#0d3a60" stroke-width="1"/>
+              <!-- Nucleolus -->
+              <circle id="part-nucleolus" class="cell-part" cx="108" cy="98" r="8"
+                fill="rgba(0,60,140,0.3)" stroke="#0a2a80" stroke-width="1"
+                data-tip="Nucléolo"/>
+
+              <!-- Mitochondria -->
+              <ellipse id="part-mito" class="cell-part" cx="60" cy="120" rx="14" ry="8" transform="rotate(-20, 60, 120)"
+                fill="rgba(255,120,0,0.15)" stroke="#803000" stroke-width="1.2"
+                data-tip="Mitocôndria"/>
+              <ellipse id="part-mito2" class="cell-part" cx="78" cy="145" rx="12" ry="7" transform="rotate(10, 78, 145)"
+                fill="rgba(255,120,0,0.15)" stroke="#803000" stroke-width="1.2"
+                data-tip="Mitocôndria"/>
+
+              <!-- ER Rough -->
+              <path id="part-rer" class="cell-part"
+                d="M130,75 Q150,80 155,95 Q160,110 145,115 Q135,118 128,108 Q122,98 130,75Z"
+                fill="rgba(180,100,255,0.12)" stroke="#6020a0" stroke-width="1.2"
+                data-tip="Retículo Endoplasmático Rugoso"/>
+
+              <!-- Golgi -->
+              <path id="part-golgi" class="cell-part"
+                d="M140,130 Q160,128 162,138 Q164,148 144,150 Q138,150 136,140 Q134,130 140,130Z"
+                fill="rgba(255,200,0,0.12)" stroke="#806000" stroke-width="1.2"
+                data-tip="Complexo de Golgi"/>
+              <path d="M140,135 Q158,133 160,140 Q162,147 142,149"
+                fill="none" stroke="rgba(255,200,0,0.3)" stroke-width="0.8"/>
+
+              <!-- Lysosomes -->
+              <circle id="part-lyso" class="cell-part" cx="75" cy="95" r="7"
+                fill="rgba(255,50,50,0.15)" stroke="#800020" stroke-width="1.1"
+                data-tip="Lisossomo"/>
+              <circle id="part-lyso2" class="cell-part" cx="90" cy="80" r="5"
+                fill="rgba(255,50,50,0.12)" stroke="#800020" stroke-width="1"
+                data-tip="Lisossomo"/>
+
+              <!-- Membrane label -->
+              <circle id="part-membrane" class="cell-part" cx="110" cy="15" r="8"
+                fill="rgba(0,229,255,0.1)" stroke="#0a5070" stroke-width="1.2"
+                data-tip="Membrana Plasmática"/>
+
+              <!-- Ribosomes -->
+              <circle id="part-ribo" class="cell-part" cx="170" cy="90" r="4"
+                fill="rgba(100,255,200,0.2)" stroke="#006040" stroke-width="1"
+                data-tip="Ribossomo"/>
+              <circle cx="165" cy="80" r="3" fill="rgba(100,255,200,0.15)" stroke="#006040" stroke-width="0.8"/>
+
+              <!-- Cytoskeleton hints -->
+              <line id="part-cyto" class="cell-part" x1="30" y1="110" x2="190" y2="110"
+                stroke="rgba(0,229,255,0.15)" stroke-width="1" stroke-dasharray="4,6"
+                data-tip="Citoesqueleto"/>
+              <line class="cell-part" x1="110" y1="20" x2="110" y2="200"
+                stroke="rgba(0,229,255,0.1)" stroke-width="1" stroke-dasharray="4,6"/>
+
+              <!-- Labels -->
+              <text x="110" y="100" text-anchor="middle" fill="rgba(0,229,255,0.4)" font-size="6" font-family="Share Tech Mono">NÚCLEO</text>
+            </svg>
+          </div>
+          <div class="terminal-line">▶ CLIQUE NAS ESTRUTURAS PARA INSPECIONAR</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Pistas Detectadas</div>
+          <div class="clue-list" id="clue-list">
+            <div class="clue-item">
+              <div class="clue-label">⚡ Aguardando análise...</div>
+              Carregando dados do paciente. Inicie a investigação.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Interaction -->
+      <div class="panel interaction-area">
+        <div class="panel-title" id="phase-label">Fase 01 — Identificação</div>
+
+        <div class="case-file" id="case-file">
+          <h3>📁 LAUDO DE CASO</h3>
+          <p id="case-description"></p>
+
+          <img src="./Gemini_Generated_Image_5knm585knm585knm.png" alt="">
+        </div>
+
+        <div class="score-display">
+          <div class="score-box">
+            <div class="score-num" id="score-num">0</div>
+            <div class="score-lbl">Pontuação</div>
+          </div>
+          <div class="score-box">
+            <div class="score-num" id="phase-num">1/4</div>
+            <div class="score-lbl">Fase</div>
+          </div>
+          <div class="score-box">
+            <div class="score-num" id="streak-num">0</div>
+            <div class="score-lbl">Sequência</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel-title" id="question-label">Questão</div>
+          <div id="question-text" style="font-size:15px;line-height:1.7;margin-bottom:14px;color:#fff;"></div>
+          <div class="options-grid" id="options-grid"></div>
+        </div>
+
+        <div class="feedback-box" id="feedback-box"></div>
+
+        <div class="notebook" id="notebook"></div>
+
+        <button class="nav-btn" id="next-btn" style="display:none" onclick="nextPhase()">
+          AVANÇAR INVESTIGAÇÃO ▶▶
+        </button>
+        <button class="nav-btn" id="finish-btn" style="display:none" onclick="showFinal()">
+          CONCLUIR INVESTIGAÇÃO ✓
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINAL -->
+  <div id="final-screen">
+    <div class="final-badge">🏆</div>
+    <div class="final-title">Investigação Concluída</div>
+    <div class="final-score" id="final-score">0</div>
+    <div class="final-summary" id="final-summary"></div>
+    <div style="display:flex;gap:12px;width:100%;max-width:400px;">
+      <button class="nav-btn" onclick="restartGame()" style="flex:1;">NOVA INVESTIGAÇÃO</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CASES = [
+  {
+    id: 0,
+    name: "Síndrome de Zellweger",
+    difficulty: "easy",
+    diffLabel: "INICIANTE",
+    description: "Paciente neonatal, 3 dias de vida. Apresenta hipotonia severa, convulsões e disfunção hepática grave. Biópsia hepática revela ausência de estruturas oxidativas específicas. Exame de urina: ácidos graxos de cadeia muito longa elevados.",
+    clues: [
+      { label: "🔴 Achado laboratorial", text: "Ácidos graxos de cadeia muito longa (AGCML) acumulados no plasma. Ácido fitânico aumentado na urina." },
+      { label: "🔬 Microscopia eletrônica", text: "Ausência de estruturas delimitadas por membrana única no citoplasma. Nenhum cristaloide observado." },
+      { label: "🧬 Genética", text: "Mutação recessiva no gene PEX (peroxina). Herança autossômica recessiva." }
+    ],
+    phases: [
+      {
+        phaseTitle: "Fase 01 — Estrutura Alterada",
+        question: "Qual organela está ausente/disfuncional neste caso?",
+        options: [
+          { text: "Mitocôndria — responsável pela respiração aeróbica", correct: false },
+          { text: "Peroxissomo — ausente por defeito nas proteínas PEX importadoras", correct: true },
+          { text: "Lisossomo — incapaz de degradar lipídios complexos", correct: false },
+          { text: "Retículo Endoplasmático Rugoso — sem síntese proteica adequada", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! Os peroxissomos são ausentes ou não funcionais na Síndrome de Zellweger. As proteínas PEX (peroxinas) são essenciais para importar enzimas ao interior do peroxissomo. Sem elas, a organela não se forma.",
+          wrong: "❌ Incorreto. Observe: a ausência de AGCML nas estruturas celulares aponta para ausência de β-oxidação peroxissomal. Os lisossomos e mitocôndrias estão presentes, mas o defeito primário é nos peroxissomos."
+        }
+      },
+      {
+        phaseTitle: "Fase 02 — Mecanismo Comprometido",
+        question: "Qual processo bioquímico está primariamente comprometido?",
+        options: [
+          { text: "Glicólise anaeróbica na matriz citoplasmática", correct: false },
+          { text: "β-oxidação de ácidos graxos de cadeia muito longa (AGCML) no peroxissomo", correct: true },
+          { text: "Fosforilação oxidativa nas cristas mitocondriais", correct: false },
+          { text: "Síntese de proteínas de exportação no RER", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! A β-oxidação peroxissomal é responsável por processar AGCML (>C22), ácido fitânico e plasmalogênios. Sem os peroxissomos, esses lipídios se acumulam e causam toxicidade, especialmente no SNC e fígado.",
+          wrong: "❌ Incorreto. A fosforilação oxidativa mitocondrial está preservada neste caso. O acúmulo específico de AGCML aponta para falha da β-oxidação peroxissomal."
+        }
+      },
+      {
+        phaseTitle: "Fase 03 — Consequências Funcionais",
+        question: "Por que ocorre hipotonia e convulsões neste paciente?",
+        options: [
+          { text: "Deficiência de ATP mitocondrial causa degeneração muscular direta", correct: false },
+          { text: "Acúmulo de AGCML e deficiência de plasmalogênios destabilizam mielina e membranas neuronais", correct: true },
+          { text: "Inflamação lisossomal desencadeia apoptose no córtex cerebral", correct: false },
+          { text: "Falha do Golgi impede transporte de neurotransmissores para sinapses", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! Os plasmalogênios são fosfolipídeos essenciais para a bainha de mielina — sua síntese requer os peroxissomos. O acúmulo de AGCML é neurotóxico. A combinação desestabiliza membranas neuronais, causando hipotonia e convulsões.",
+          wrong: "❌ Incorreto. A desmielinização é o mecanismo central aqui. Os plasmalogênios — que dependem de peroxissomos para sua síntese — são componentes críticos da mielina."
+        }
+      },
+      {
+        phaseTitle: "Fase 04 — Resolução Científica",
+        question: "Qual abordagem terapêutica tem embasamento científico para esta síndrome?",
+        options: [
+          { text: "Transplante de mitocôndrias por via intravenosa experimental", correct: false },
+          { text: "Dieta restrita em AGCML + suplementação de DHA + ácido biliar (ácido cólico)", correct: true },
+          { text: "Inibição de lisossomos para reduzir degradação lipídica compensatória", correct: false },
+          { text: "Correção genética imediata por CRISPR elimina o fenótipo completamente", correct: false }
+        ],
+        feedback: {
+          correct: "✅ EXCELENTE! A abordagem atual envolve: (1) Dieta restrita em AGCML e ácido fitânico; (2) Suplementação de DHA (ácido docosahexaenoico) pois sua síntese é peroxissoma-dependente; (3) Ácidos biliares primários para compensar defeitos hepáticos. Ensaios de terapia gênica com vetores AAV para genes PEX estão em fase pré-clínica.",
+          wrong: "❌ Incorreto. Não há cura ainda. O manejo atual é sintomático e metabólico, focando em reduzir substratos tóxicos e suplementar metabólitos deficientes."
+        }
+      }
+    ]
+  },
+  {
+    id: 1,
+    name: "Doença de Tay-Sachs",
+    difficulty: "medium",
+    diffLabel: "INTERMEDIÁRIO",
+    description: "Lactente de 6 meses. Desenvolvimento psicomotor normal até o 4º mês, agora com regressão. Hipersensibilidade a sons (reflexo de Moro exacerbado), mancha vermelho-cereja na mácula. Enzimologia: hexosaminidase A indetectável.",
+    clues: [
+      { label: "🔴 Clínica", text: "Macrocefalia progressiva, espasticidade, cegueira. Regressão neurológica rápida após os 6 meses de vida." },
+      { label: "🔬 Bioquímica", text: "Acúmulo massivo de gangliosídeo GM2 nos neurônios cerebrais. Hexosaminidase A ausente." },
+      { label: "🧬 Patologia", text: "Neurônios distendidos por vacúolos lipídicos em microscopia eletrônica. Destruição progressiva da substância cinzenta." }
+    ],
+    phases: [
+      {
+        phaseTitle: "Fase 01 — Estrutura Alterada",
+        question: "Qual organela é a sede primária do defeito celular em Tay-Sachs?",
+        options: [
+          { text: "Peroxissomo — defeito na β-oxidação de gangliosídeos", correct: false },
+          { text: "Lisossomo — defeito na enzima hexosaminidase A lisossomal", correct: true },
+          { text: "Núcleo — mutação silencia gene de enzima mitocondrial", correct: false },
+          { text: "Retículo Endoplasmático — dobramento proteico incorreto retém a enzima", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! A doença de Tay-Sachs é uma doença lisossômica de depósito. A hexosaminidase A é uma enzima lisossomal que cliva o gangliosídeo GM2. Sua ausência causa acúmulo intracelular de GM2, especialmente em neurônios.",
+          wrong: "❌ Incorreto. Embora o defeito genético esteja no núcleo, a sede funcional do problema é o lisossomo, onde a enzima ausente deveria atuar para degradar GM2."
+        }
+      },
+      {
+        phaseTitle: "Fase 02 — Mecanismo Comprometido",
+        question: "Qual processo molecular é diretamente interrompido nos neurônios?",
+        options: [
+          { text: "Fosforilação oxidativa — GM2 inibe a cadeia transportadora de elétrons", correct: false },
+          { text: "Catabolismo lisossomal de gangliosídeos — GM2 acumula por falta de hexosaminidase A", correct: true },
+          { text: "Síntese de mielina — falta de substrato para oligodendrócitos", correct: false },
+          { text: "Autofagia — mitofagia bloqueada por sobrecarga lipídica", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! A via normal: GM2 + hexosaminidase A → GM3 (degradado). Sem a enzima, GM2 se acumula progressivamente nos lisossomos neuronais, causando distensão celular, disfunção e morte neuronal. É o protótipo das esfingolipidoses.",
+          wrong: "❌ Incorreto. O mecanismo central é o bloqueio da via de degradação lisossomal dos gangliosídeos. O acúmulo de GM2 é o evento patogênico primário."
+        }
+      },
+      {
+        phaseTitle: "Fase 03 — Consequências Funcionais",
+        question: "Por que a mancha vermelho-cereja aparece na mácula do paciente?",
+        options: [
+          { text: "Vasodilatação retiniana por hipertensão intracraniana compensatória", correct: false },
+          { text: "Neurônios ganglionares ao redor da mácula incham com GM2, tornando a área opaca; a fóvea avascular permanece vermelha por contraste", correct: true },
+          { text: "Deficiência de vitamina A causa degeneração do epitélio pigmentar foveal", correct: false },
+          { text: "Inflamação coroidea por resposta autoimune contra GM2 acumulado", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! Este é o sinal clássico de Tay-Sachs. Os neurônios ganglionares periféricos à fóvea incham com GM2 → opacificação branca. A fóvea central não tem neurônios ganglionares → o vermelho da coroide subjacente fica visível → contraste vermelho-cereja.",
+          wrong: "❌ Incorreto. A mancha vermelho-cereja é explicada pela anatomia única da fóvea: é a única área macular sem neurônios ganglionares, portanto não opacifica com o acúmulo de GM2."
+        }
+      },
+      {
+        phaseTitle: "Fase 04 — Resolução Científica",
+        question: "Qual estratégia terapêutica tem maior potencial para formas subagudas da doença?",
+        options: [
+          { text: "Inibição de hexosaminidase B para compensar a ausência da isoforma A", correct: false },
+          { text: "Terapia de redução de substrato (miglustat) + Terapia gênica com vetor AAV9 entregando gene HEXA funcional", correct: true },
+          { text: "Transplante hepático para restabelecer produção sistêmica da enzima", correct: false },
+          { text: "Administração intravenosa de GM2 sintético para saturar receptores tóxicos", correct: false }
+        ],
+        feedback: {
+          correct: "✅ EXCELENTE! Duas frentes promissoras: (1) Terapia de redução de substrato (ex: miglustat inibe síntese de GM2, reduzindo o acúmulo); (2) Terapia gênica com AAV9 intratecal/intraventricular, capaz de cruzar a barreira hematoencefálica e corrigir neurônios com o gene HEXA funcional. Estudos em fase clínica I/II mostram resultados preliminares encorajadores.",
+          wrong: "❌ Incorreto. O transplante hepático não ajuda pois o problema é intracelular em neurônios — enzimas periféricas não cruzam a barreira hematoencefálica eficientemente."
+        }
+      }
+    ]
+  },
+  {
+    id: 2,
+    name: "Síndrome de Werner",
+    difficulty: "hard",
+    diffLabel: "AVANÇADO",
+    description: "Paciente 35 anos com aparência senil, catarata bilateral, aterosclerose severa, diabetes mellitus tipo 2 precoce e múltiplos tumores mesenquimais. Fibroblastos em cultura mostram senescência prematura e instabilidade genômica elevada.",
+    clues: [
+      { label: "🔴 Clínica", text: "Envelhecimento prematuro desde 20s: calvície, pele atrófica, voz afinada. Predisposição a sarcomas e tumores raros." },
+      { label: "🔬 Citogenética", text: "Alta frequência de deleções cromossômicas. Telômeros encurtados prematuramente. Pontos de quebra em regiões repetitivas." },
+      { label: "🧬 Bioquímica molecular", text: "Proteína WRN (uma helicase/exonuclease) ausente. Falha no reparo de DSB (quebras duplas) e no colapso de forquilhas de replicação." }
+    ],
+    phases: [
+      {
+        phaseTitle: "Fase 01 — Estrutura Alterada",
+        question: "Qual estrutura nuclear é funcionalmente comprometida na Síndrome de Werner?",
+        options: [
+          { text: "Nucléolo — síntese de rRNA prejudicada pela ausência de WRN", correct: false },
+          { text: "Cromatina nuclear / DNA genômico — falha no reparo de quebras duplas e telômeros", correct: true },
+          { text: "Envoltório nuclear — poros mal formados impedem exportação de mRNA", correct: false },
+          { text: "Centrômero — falha na segregação cromossômica na mitose", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! A proteína WRN é uma helicase RecQ nuclear que atua no DNA. Ela é essencial para: reparo de quebras de fita dupla (DSBs), resolução de estruturas G-quadruplex, estabilidade de telômeros e proteção de forquilhas de replicação estagnadas.",
+          wrong: "❌ Incorreto. A WRN atua diretamente no DNA nuclear — especialmente em regiões de telômero e em DSBs. A estrutura comprometida é o próprio genoma, não a membrana ou aparato de transcrição."
+        }
+      },
+      {
+        phaseTitle: "Fase 02 — Mecanismo Comprometido",
+        question: "Qual via de reparo de DNA está primariamente deficiente na ausência da proteína WRN?",
+        options: [
+          { text: "Reparo por excisão de bases (BER) — WRN remove bases oxidadas específicas", correct: false },
+          { text: "Recombinação homóloga (HR) e reparo de DSB — WRN desfaz estruturas secundárias para permitir reparo", correct: true },
+          { text: "Reparo por incompatibilidade (MMR) — WRN reconhece erros de replicação", correct: false },
+          { text: "Fotorreativação — WRN ativa quando há dano por UV induzido", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! A WRN helicase desfaz estruturas secundárias complexas do DNA (G-quadruplex, D-loops, Holliday junctions) que surgem durante a recombinação homóloga e o reinício de forquilhas estagnadas. Sem WRN, DSBs são mal reparadas → instabilidade genômica → senescência e câncer.",
+          wrong: "❌ Incorreto. WRN atua na recombinação homóloga, reparo de DSBs e resolução de estruturas secundárias de DNA. Sua ausência causa acúmulo catastrófico de quebras duplas não reparadas."
+        }
+      },
+      {
+        phaseTitle: "Fase 03 — Consequências Funcionais",
+        question: "Por que a senescência celular prematura em Werner acelera o envelhecimento sistêmico?",
+        options: [
+          { text: "Células senescentes produzem menos colágeno, causando atrofia tecidual isolada", correct: false },
+          { text: "O SASP (fenótipo secretor associado à senescência) libera citocinas inflamatórias que danificam tecidos adjacentes e exaurem células-tronco", correct: true },
+          { text: "Telômeros curtos impedem apenas a divisão celular, sem efeito nos tecidos pós-mitóticos", correct: false },
+          { text: "Senescência ativa apoptose em massa, eliminando reservatórios de células-tronco rapidamente", correct: false }
+        ],
+        feedback: {
+          correct: "✅ CORRETO! O SASP (Senescence-Associated Secretory Phenotype) é o mecanismo central. Células senescentes acumuladas liberam IL-6, IL-8, MMP, TGF-β e outros fatores pro-inflamatórios. Isso cria inflamação crônica ('inflammaging'), degrada a matriz extracelular, exaure nichos de células-tronco e promove transformação maligna das células vizinhas.",
+          wrong: "❌ Incorreto. Além de parar de se dividir, células senescentes são metabolicamente ativas e secretam o SASP — um coquetel de fatores inflamatórios e remodeladores de matriz que causa efeitos sistêmicos devastadores."
+        }
+      },
+      {
+        phaseTitle: "Fase 04 — Resolução Científica",
+        question: "Qual estratégia terapêutica emergente tem maior embasamento para tratar a biologia de Werner?",
+        options: [
+          { text: "Administração de WRN recombinante intravenosa para repor a helicase ausente", correct: false },
+          { text: "Senolíticos (quercetina + dasatinibe) para eliminar células senescentes + antioxidantes para reduzir dano ao DNA", correct: true },
+          { text: "Bloqueio de telomerase para estabilizar o genoma instável de células tumorais", correct: false },
+          { text: "Estimulação de apoptose global via ativação de p53 sistêmica", correct: false }
+        ],
+        feedback: {
+          correct: "✅ EXCELENTE! Duas abordagens convergentes: (1) Senolíticos — drogas que induzem seletivamente apoptose em células senescentes (quercetina + dasatinibe eliminam células senescentes in vivo, reduzindo SASP); (2) N-acetilcisteína e outros antioxidantes reduzem dano oxidativo ao DNA. A terapia gênica com vetor AAV entregando WRN funcional está em desenvolvimento pré-clínico. Também estuda-se o bloqueio de vias do SASP (anti-IL-6).",
+          wrong: "❌ Incorreto. A WRN é uma proteína nuclear e não pode ser reposta via intravenosa. O bloqueio de telomerase seria deletério — as células precisam replicar DNA de forma normal."
+        }
+      }
+    ]
+  }
+];
+
+let currentCase = null;
+let currentPhase = 0;
+let score = 0;
+let streak = 0;
+let phasePassed = [];
+let notebookEntries = [];
+
+function init() {
+  renderCaseSelect();
+}
+
+function renderCaseSelect() {
+  const grid = document.getElementById('cases-grid');
+  grid.innerHTML = '';
+  CASES.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'case-card';
+    const diffClass = c.difficulty === 'easy' ? 'diff-easy' : c.difficulty === 'medium' ? 'diff-medium' : 'diff-hard';
+    card.innerHTML = `
+      <div class="case-num">CASO #${String(i+1).padStart(3,'0')}</div>
+      <div class="case-name">${c.name}</div>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:12px;line-height:1.5;">${c.description.substring(0,100)}…</div>
+      <span class="case-diff ${diffClass}">${c.diffLabel}</span>
+    `;
+    card.onclick = () => startCase(i);
+    grid.appendChild(card);
+  });
+}
+
+function startCase(idx) {
+  currentCase = CASES[idx];
+  currentPhase = 0;
+  score = 0;
+  streak = 0;
+  phasePassed = [];
+  notebookEntries = [];
+
+  document.getElementById('case-select').classList.add('hidden');
+  const ga = document.getElementById('game-area');
+  ga.style.display = 'flex';
+  ga.style.flexDirection = 'column';
+  ga.style.gap = '0';
+
+  document.getElementById('score-num').textContent = '0';
+  document.getElementById('streak-num').textContent = '0';
+  document.getElementById('pts-display').textContent = '0';
+
+  updateClues();
+  renderPhase();
+}
+
+function updateClues() {
+  const list = document.getElementById('clue-list');
+  list.innerHTML = '';
+  currentCase.clues.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'clue-item';
+    div.innerHTML = `<div class="clue-label">${c.label}</div>${c.text}`;
+    list.appendChild(div);
+  });
+}
+
+function renderPhase() {
+  const phase = currentCase.phases[currentPhase];
+
+  // Update phase track
+  const items = document.querySelectorAll('.phase-item');
+  items.forEach((item, i) => {
+    item.classList.remove('active', 'done');
+    if (i < currentPhase) item.classList.add('done');
+    if (i === currentPhase) item.classList.add('active');
+  });
+
+  // Progress bar
+  document.getElementById('progress-bar').style.width = ((currentPhase / 4) * 100) + '%';
+
+  // Labels
+  document.getElementById('phase-label').textContent = phase.phaseTitle;
+  document.getElementById('phase-num').textContent = `${currentPhase+1}/4`;
+  document.getElementById('question-text').textContent = phase.question;
+  document.getElementById('case-description').textContent = currentCase.description;
+
+  // Reset feedback
+  const fb = document.getElementById('feedback-box');
+  fb.className = 'feedback-box';
+  fb.textContent = '';
+
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('finish-btn').style.display = 'none';
+
+  // Notebook
+  renderNotebook();
+
+  // Options
+  const og = document.getElementById('options-grid');
+  og.innerHTML = '';
+  const keys = ['A','B','C','D'];
+  phase.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span class="opt-key">${keys[i]}</span>${opt.text}`;
+    btn.onclick = () => selectOption(btn, opt, phase);
+    og.appendChild(btn);
+  });
+
+  // Animate cell highlight for relevant part
+  highlightCellPart(currentPhase);
+}
+
+function highlightCellPart(phase) {
+  const allParts = document.querySelectorAll('.cell-part');
+  allParts.forEach(p => { p.classList.remove('highlight', 'dimmed'); });
+
+  // Highlight based on case + phase
+  const highlights = {
+    0: { 0: ['part-nucleus'], 1: ['part-mito'], 2: ['part-membrane'], 3: ['part-ribo'] },
+    1: { 0: ['part-lyso', 'part-lyso2'], 1: ['part-lyso', 'part-lyso2'], 2: ['part-golgi'], 3: ['part-rer'] },
+    2: { 0: ['part-nucleus', 'part-nucleolus'], 1: ['part-nucleus'], 2: ['part-cyto'], 3: ['part-nucleus', 'part-mito'] }
+  };
+
+  const caseHighlights = highlights[currentCase.id]?.[phase] || [];
+  caseHighlights.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('highlight');
+  });
+
+  allParts.forEach(p => {
+    if (!caseHighlights.includes(p.id) && caseHighlights.length > 0) {
+      p.classList.add('dimmed');
+    }
+  });
+}
+
+function selectOption(btn, opt, phase) {
+  const allBtns = document.querySelectorAll('.option-btn');
+  allBtns.forEach(b => b.disabled = true);
+
+  const fb = document.getElementById('feedback-box');
+
+  if (opt.correct) {
+    btn.classList.add('correct');
+    streak++;
+    const bonus = streak > 1 ? Math.floor(streak * 50) : 0;
+    const pts = 100 + bonus;
+    score += pts;
+    document.getElementById('score-num').textContent = score;
+    document.getElementById('pts-display').textContent = score;
+    document.getElementById('streak-num').textContent = streak;
+
+    fb.className = 'feedback-box success show';
+    fb.innerHTML = phase.feedback.correct + (bonus > 0 ? `<br><br><strong>🔥 BÔNUS DE SEQUÊNCIA +${bonus} pts!</strong>` : '');
+
+    phasePassed.push(true);
+    notebookEntries.push({ phase: currentPhase+1, label: getPhaseShortLabel(currentPhase), answer: btn.textContent.replace(/^[A-D]/,'').trim() });
+    renderNotebook();
+
+  } else {
+    btn.classList.add('wrong');
+    streak = 0;
+    document.getElementById('streak-num').textContent = '0';
+
+    fb.className = 'feedback-box error show';
+    fb.innerHTML = phase.feedback.wrong;
+
+    // Show correct
+    allBtns.forEach(b => {
+      const txt = b.textContent.replace(/^[A-D]/,'').trim();
+      if (phase.options.find(o => o.correct && b.innerHTML.includes(o.text.substring(0,20)))) {
+        b.classList.add('correct');
+      }
+    });
+    phasePassed.push(false);
+  }
+
+  // Show advance button
+  setTimeout(() => {
+    if (currentPhase < 3) {
+      document.getElementById('next-btn').style.display = 'block';
+    } else {
+      document.getElementById('finish-btn').style.display = 'block';
+      document.getElementById('progress-bar').style.width = '100%';
+    }
+  }, 600);
+}
+
+function getPhaseShortLabel(i) {
+  return ['ESTRUTURA', 'MECANISMO', 'CONSEQUÊNCIA', 'RESOLUÇÃO'][i];
+}
+
+function renderNotebook() {
+  const nb = document.getElementById('notebook');
+  if (notebookEntries.length === 0) { nb.innerHTML = ''; return; }
+  nb.innerHTML = '<div style="color:var(--accent);margin-bottom:6px;letter-spacing:2px;">📓 CADERNO DE INVESTIGAÇÃO</div>';
+  notebookEntries.forEach(e => {
+    const div = document.createElement('div');
+    div.innerHTML = `► Fase ${e.phase} [<span>${e.label}</span>]: ${e.answer}`;
+    nb.appendChild(div);
+  });
+}
+
+function nextPhase() {
+  currentPhase++;
+  renderPhase();
+  document.getElementById('next-btn').style.display = 'none';
+}
+
+function showFinal() {
+  document.getElementById('game-area').style.display = 'none';
+  const fs = document.getElementById('final-screen');
+  fs.classList.add('show');
+
+  document.getElementById('final-score').textContent = score;
+
+  const correct = phasePassed.filter(Boolean).length;
+  const rank = correct === 4 ? '🏅 ESPECIALISTA SÊNIOR' : correct >= 3 ? '🥈 INVESTIGADOR PLENO' : correct >= 2 ? '🥉 ANALISTA CELULAR' : '📋 ESTAGIÁRIO';
+
+  document.getElementById('final-summary').innerHTML = `
+    <strong style="color:var(--accent);font-family:'Orbitron',monospace;letter-spacing:2px;">${currentCase.name}</strong><br><br>
+    Respostas corretas: <strong style="color:var(--accent2)">${correct}/4</strong><br>
+    Pontuação final: <strong style="color:var(--accent)">${score} pts</strong><br>
+    Classificação: <strong style="color:var(--accent4)">${rank}</strong><br><br>
+    ${notebookEntries.length > 0 ? `<hr style="border:none;border-top:1px solid var(--border);margin:12px 0;"><div style="text-align:left;">${notebookEntries.map(e=>`<div>▸ ${e.label}: ${e.answer.substring(0,80)}…</div>`).join('')}</div>` : ''}
+  `;
+}
+
+function restartGame() {
+  document.getElementById('final-screen').classList.remove('show');
+  document.getElementById('case-select').classList.remove('hidden');
+  currentCase = null;
+}
+
+// Cell part inspection
+document.querySelectorAll('.cell-part').forEach(el => {
+  el.addEventListener('click', function() {
+    const tip = this.getAttribute('data-tip');
+    if (!tip) return;
+    // show brief flash
+    const old = this.style.filter;
+    this.style.filter = 'brightness(3) drop-shadow(0 0 15px #fff)';
+    setTimeout(() => { this.style.filter = old; }, 300);
+  });
+});
+
+init();
+</script>
+</body>
+</html>
